@@ -124,7 +124,7 @@
 						}
 					}
 				})
-				.on('input.etw paste.etw', function () {
+				.on('input.etw paste.etw propertychange.etw.forIE', function () {
 					if ($.isFunction(activeOptions.onValidate) &&
 						activeOptions.onValidate.call(
 							activeCell,

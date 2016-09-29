@@ -1,26 +1,36 @@
 /*
  *	usage:
- *	$('#tableID').editableTableWidget({
- *		cloneProperties: [],
+ *
+ *	js file
+ *	=======
+ *	$('#tableID').tableEdit({
+ *		cloneProperties: [...],
+ *		trimValue      : false,
+ *		selectable     : false,
+ *		deletable      : false,
  *		onValidate     : function(value, col, row) {
  *			//code
  *		},
  *		isCellEditable : function(colName, col, row) {
  *			//code
- *		},
- *		trimValue      : false
+ *		}
  *	})
+ *
+ *	css file
+ *	========
+ *	tr.selected { background-color: #456 }
+ *	tr.deleteMark { background-color: #f00 }
  */
 
 ; !function ($) {
 	'use strict'
 
-	$.fn.editableTableWidget = function (options) {
+	$.fn.tableEdit = function (options) {
 		'use strict';
 		return $(this).each(function () {
 			var
 				ARROW_LEFT = 37, ARROW_UP = 38, ARROW_RIGHT = 39, ARROW_DOWN = 40,
-				ENTER = 13, ESC = 27, TAB = 9, SPACE = 32,
+				ENTER = 13, ESC = 27, TAB = 9, SPACE = 32, DELETE = 46,
 
 				buildDefaultOptions = function () {
 					var opts = {
@@ -29,7 +39,9 @@
 							'text-align', 'font', 'font-size', 'font-family', 'font-weight',
 							'border', 'border-top', 'border-bottom', 'border-left', 'border-right'
 						],
-						trimValue: true,
+						trimValue  : true,
+						selectable : true,
+						deletable  : true,
 						editor: $('<input>')
 					}
 					//opts.editor = opts.editor.clone()
@@ -38,17 +50,17 @@
 				activeOptions = $.extend(buildDefaultOptions(), options),
 
 				currTable = $(this),
-				editor = activeOptions.editor.css('position', 'absolute').hide().appendTo(currTable.parent()),
+				editor    = activeOptions.editor.css('position', 'absolute').hide().appendTo(currTable.parent()),
 				activeCell,
 
 				showEditor = function (select) {
 					activeCell = currTable.find('td:focus')
-					if (activeCell.length < 1 || ($.isFunction(activeOptions.isCellEditable) && activeOptions.isCellEditable.call(
-						activeCell, $.trim(currTable.find('thead tr').children().eq(activeCell.index()).text()), activeCell.index(), activeCell.parent().index()) === false)) {
+					if (activeCell.length < 1 || ($.isFunction(activeOptions.isCellEditable) && activeOptions.isCellEditable.call(activeCell,
+						$.trim(currTable.find('thead tr').children().eq(activeCell.index()).text()), activeCell.index(), activeCell.parent().index()) === false)) {
 						return
 					}
 
-					editor.val(activeOptions.trimValue ? $.trim(activeCell.text()) : activeCell.text()) //trim ?
+					editor.val(activeOptions.trimValue ? $.trim(activeCell.text()) : activeCell.text())
 						.removeClass('error')
 						.show()
 						.offset(activeCell.offset())
@@ -64,7 +76,7 @@
 
 				setActiveText = function () {
 					var text = editor.val(),
-						evt = $.Event('change'),
+						evt  = $.Event('change.etw'),
 						originalContent
 
 					if (activeCell.text() === text || editor.hasClass('error')) {
@@ -95,7 +107,7 @@
 			editor.blur(function () {
 				setActiveText()
 				editor.hide()
-			})
+				})
 				.keydown(function (e) {
 					if (e.which === ENTER) {
 						setActiveText()
@@ -126,8 +138,7 @@
 				})
 				.on('input.etw paste.etw propertychange.etw.forIE', function () {
 					if ($.isFunction(activeOptions.onValidate) &&
-						activeOptions.onValidate.call(
-							activeCell,
+						activeOptions.onValidate.call(activeCell,
 							editor.val(),
 							activeCell.index(),
 							activeCell.parent().index()) === false) {
@@ -139,7 +150,18 @@
 
 			//table setting
 			currTable.css('cursor', 'pointer')
-				.on('click.etw keypress.etw dblclick.etw', function () {
+				.on('click.etw', 'tbody tr', function (e) {
+					if (!activeOptions.selectable) {
+						return
+					}
+					if (!e.ctrlKey) {
+						currTable.find('tbody tr.selected').removeClass('selected')
+						currTable.find('tbody tr.deleteMark').removeClass('deleteMark')
+					}
+					$(this).removeClass('deleteMark').toggleClass('selected')
+					e.stopPropagation()
+				})
+				.on('keypress.etw dblclick.etw', function () {
 					showEditor(true)
 				})
 				.keydown(function (e) {
@@ -149,6 +171,11 @@
 						possibleMove.focus();
 					} else if (e.which === ENTER || e.which === SPACE) {
 						showEditor(false);
+					} else if (e.which === DELETE && activeOptions.deletable) {
+						currTable.find('tbody tr.deleteMark').remove()
+						currTable.find('tbody tr.selected').removeClass('selected').addClass('deleteMark')
+					} else if (e.which === ESC) {
+						currTable.find('tr.deleteMark').removeClass('deleteMark')
 					} else {
 						prevent = false;
 					}
@@ -166,6 +193,10 @@
 						.width(activeCell.width())
 						.height(activeCell.height());
 				}
+			})
+			.on('click.etw', function () {
+				currTable.find('tr.selected').removeClass('selected')
+				currTable.find('tr.deleteMark').removeClass('deleteMark')
 			})
 		})
 	}

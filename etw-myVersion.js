@@ -8,11 +8,15 @@
  *		trimValue      : false,
  *		selectable     : false,
  *		deletable      : false,
+ *		selectedMarker : 'selected',
+ *		deleteMarker   : 'deleteMark',
  *		onValidate     : function(value, col, row) {
- *			//code
+ *			if (value === '')
+ *				return false
  *		},
  *		isCellEditable : function(colName, col, row) {
- *			//code
+ *			if (col === 0)
+ *				return false
  *		}
  *	})
  *
@@ -42,12 +46,17 @@
 						trimValue  : true,
 						selectable : true,
 						deletable  : true,
+						selectedMarker  : 'info',
+						deleteMarker : 'danger',
+
 						editor: $('<input>')
 					}
 					//opts.editor = opts.editor.clone()
 					return opts;
 				},
-				activeOptions = $.extend(buildDefaultOptions(), options),
+				activeOptions   = $.extend(buildDefaultOptions(), options),
+				selectedFinder  = 'tbody tr.' + activeOptions.selectedMarker,
+				deleteFinder = 'tbody tr.' + activeOptions.deleteMarker,
 
 				currTable = $(this),
 				editor    = activeOptions.editor.css('position', 'absolute').hide().appendTo(currTable.parent()),
@@ -155,10 +164,10 @@
 						return
 					}
 					if (!e.ctrlKey) {
-						currTable.find('tbody tr.selected').removeClass('selected')
-						currTable.find('tbody tr.deleteMark').removeClass('deleteMark')
+						currTable.find(selectedFinder).removeClass(activeOptions.selectedMarker)
+						currTable.find(deleteFinder).removeClass(activeOptions.deleteMarker)
 					}
-					$(this).removeClass('deleteMark').toggleClass('selected')
+					$(this).removeClass(activeOptions.deleteMarker).toggleClass(activeOptions.selectedMarker)
 					e.stopPropagation()
 				})
 				.on('keypress.etw dblclick.etw', function () {
@@ -166,37 +175,47 @@
 				})
 				.keydown(function (e) {
 					var prevent = true,
-						possibleMove = movement($(e.target), e.which);
+						possibleMove = movement($(e.target), e.which),
+						preDeleteRows
+
 					if (possibleMove.length > 0) {
-						possibleMove.focus();
-					} else if (e.which === ENTER || e.which === SPACE) {
-						showEditor(false);
-					} else if (e.which === DELETE && activeOptions.deletable) {
-						currTable.find('tbody tr.deleteMark').remove()
-						currTable.find('tbody tr.selected').removeClass('selected').addClass('deleteMark')
+						possibleMove.focus()
+					} else if (e.which === SPACE) {
+						showEditor(true)
+					} else if (e.which === ENTER) {
+						preDeleteRows = currTable.find(deleteFinder)
+						if (preDeleteRows.length) {
+							preDeleteRows.remove()
+						} else {
+							showEditor(false)
+						}
+					}else if (e.which === DELETE && activeOptions.deletable) {
+						currTable.find(deleteFinder).remove()
+						currTable.find(selectedFinder).addClass(activeOptions.deleteMarker)
 					} else if (e.which === ESC) {
-						currTable.find('tr.deleteMark').removeClass('deleteMark')
+						currTable.find(deleteFinder).removeClass(activeOptions.deleteMarker)
+						currTable.find(selectedFinder).removeClass(activeOptions.selectedMarker)
 					} else {
 						prevent = false;
 					}
 					if (prevent) {
-						e.stopPropagation();
-						e.preventDefault();
+						e.stopPropagation()
+						e.preventDefault()
 					}
 				})
 
-			currTable.find('td').prop('tabindex', 1);
+			currTable.find('td').prop('tabindex', 1)
 
 			$(window).on('resize.etw', function () {
 				if (editor.is(':visible')) {
 					editor.offset(activeCell.offset())
 						.width(activeCell.width())
-						.height(activeCell.height());
+						.height(activeCell.height())
 				}
 			})
 			.on('click.etw', function () {
-				currTable.find('tr.selected').removeClass('selected')
-				currTable.find('tr.deleteMark').removeClass('deleteMark')
+				currTable.find(selectedFinder).removeClass(activeOptions.selectedMarker)
+				currTable.find(deleteFinder).removeClass(activeOptions.deleteMarker)
 			})
 		})
 	}
